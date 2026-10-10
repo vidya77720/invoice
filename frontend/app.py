@@ -67,7 +67,8 @@ with st.sidebar:
             "Analytics",
             "AI Assistant",
             "Reports"
-        ]
+        ],
+        key="main_navigation"
     )
     
     st.divider()
@@ -199,7 +200,8 @@ elif page == "Upload Invoice":
     uploaded_file = st.file_uploader(
         "Choose an invoice file",
         type=['pdf', 'png', 'jpg', 'jpeg'],
-        help="Supported formats: PDF, PNG, JPG, JPEG"
+        help="Supported formats: PDF, PNG, JPG, JPEG",
+        key="upload_invoice_file"
     )
     
     if uploaded_file:
@@ -211,7 +213,7 @@ elif page == "Upload Invoice":
             st.write(f"**Type:** {uploaded_file.type}")
         
         with col2:
-            if st.button("Process Invoice", type="primary"):
+            if st.button("Process Invoice", type="primary", key="btn_process_invoice"):
                 with st.spinner("Processing invoice..."):
                     try:
                         # Upload to API
@@ -516,7 +518,7 @@ elif page == "AI Assistant":
         key="ai_query"
     )
     
-    if st.button("Ask", type="primary"):
+    if st.button("Ask", type="primary", key="btn_ask_ai"):
         if user_query:
             with st.spinner("Processing your query..."):
                 try:
@@ -568,7 +570,7 @@ elif page == "Reports":
     with col1:
         st.subheader("PDF Reports")
         month = st.text_input("Month (YYYY-MM, leave empty for current)", value="", key="report_month")
-        if st.button("Generate Monthly PDF Report"):
+        if st.button("Generate Monthly PDF Report", key="btn_gen_monthly_pdf"):
             with st.spinner("Generating PDF report..."):
                 try:
                     params = {"month": month} if month else {}
@@ -589,7 +591,7 @@ elif page == "Reports":
     
     with col2:
         st.subheader("Excel/CSV Reports")
-        if st.button("Export to CSV"):
+        if st.button("Export to CSV", key="btn_export_csv"):
             with st.spinner("Generating CSV export..."):
                 try:
                     response = requests.get(f"{API_URL}/api/reports/csv", timeout=30)
