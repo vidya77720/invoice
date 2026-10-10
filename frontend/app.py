@@ -1,7 +1,10 @@
 import streamlit as st
 import requests
+import os
 from pathlib import Path
 import sys
+
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -71,7 +74,7 @@ with st.sidebar:
     
     # API Status
     try:
-        response = requests.get("http://localhost:8000/health", timeout=2)
+        response = requests.get(f"{API_URL}/health", timeout=2)
         if response.status_code == 200:
             st.success("✅ API Connected")
         else:
@@ -85,8 +88,8 @@ if page == "Dashboard":
     
     # Fetch data
     try:
-        invoices_response = requests.get("http://localhost:8000/api/invoices", timeout=2)
-        analytics_response = requests.get("http://localhost:8000/api/analytics/summary", timeout=2)
+        invoices_response = requests.get(f"{API_URL}/api/invoices", timeout=2)
+        analytics_response = requests.get(f"{API_URL}/api/analytics/summary", timeout=2)
         
         if invoices_response.status_code == 200:
             invoices = invoices_response.json()
@@ -168,7 +171,7 @@ if page == "Dashboard":
         with col2:
             st.subheader("Top Vendors")
             try:
-                vendors_response = requests.get("http://localhost:8000/api/vendors/top?limit=5", timeout=2)
+                vendors_response = requests.get(f"{API_URL}/api/vendors/top?limit=5", timeout=2)
                 if vendors_response.status_code == 200:
                     vendors = vendors_response.json()
                     if vendors:
@@ -213,7 +216,7 @@ elif page == "Upload Invoice":
                     try:
                         # Upload to API
                         files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-                        response = requests.post("http://localhost:8000/api/invoices/upload", files=files)
+                        response = requests.post(f"{API_URL}/api/invoices/upload", files=files)
                         
                         if response.status_code == 200:
                             result = response.json()
@@ -233,7 +236,7 @@ elif page == "Invoices":
     st.markdown('<h1 class="main-header">All Invoices</h1>', unsafe_allow_html=True)
     
     try:
-        response = requests.get("http://localhost:8000/api/invoices", timeout=2)
+        response = requests.get(f"{API_URL}/api/invoices", timeout=2)
         if response.status_code == 200:
             invoices = response.json()
             
@@ -268,7 +271,7 @@ elif page == "Invoices":
                                         "total_amount": edited_amount,
                                         "category": edited_category
                                     }
-                                    resp = requests.put(f"http://localhost:8000/api/invoices/{invoice.get('id')}", json=updates)
+                                    resp = requests.put(f"{API_URL}/api/invoices/{invoice.get('id')}", json=updates)
                                     if resp.status_code == 200:
                                         st.success("Changes saved!")
                                         st.rerun()
@@ -288,7 +291,7 @@ elif page == "Review Queue":
     st.markdown('<h1 class="main-header">Review Queue</h1>', unsafe_allow_html=True)
     
     try:
-        response = requests.get("http://localhost:8000/api/invoices", timeout=2)
+        response = requests.get(f"{API_URL}/api/invoices", timeout=2)
         if response.status_code == 200:
             invoices = response.json()
             
@@ -329,7 +332,7 @@ elif page == "Review Queue":
                             with col_a:
                                 if st.button(f"Approve {invoice.get('id')}", key=f"approve_{invoice.get('id')}"):
                                     try:
-                                        resp = requests.post(f"http://localhost:8000/api/invoices/{invoice.get('id')}/approve")
+                                        resp = requests.post(f"{API_URL}/api/invoices/{invoice.get('id')}/approve")
                                         if resp.status_code == 200:
                                             st.success("Approved!")
                                             st.rerun()
@@ -339,7 +342,7 @@ elif page == "Review Queue":
                             with col_b:
                                 if st.button(f"Reject {invoice.get('id')}", key=f"reject_{invoice.get('id')}"):
                                     try:
-                                        resp = requests.post(f"http://localhost:8000/api/invoices/{invoice.get('id')}/reject")
+                                        resp = requests.post(f"{API_URL}/api/invoices/{invoice.get('id')}/reject")
                                         if resp.status_code == 200:
                                             st.success("Rejected!")
                                             st.rerun()
@@ -357,7 +360,7 @@ elif page == "Vendors":
     st.markdown('<h1 class="main-header">Vendor Intelligence</h1>', unsafe_allow_html=True)
     
     try:
-        response = requests.get("http://localhost:8000/api/vendors", timeout=2)
+        response = requests.get(f"{API_URL}/api/vendors", timeout=2)
         if response.status_code == 200:
             vendors = response.json()
             
@@ -395,7 +398,7 @@ elif page == "Vendors":
                         
                         # Vendor trends
                         try:
-                            trends_resp = requests.get(f"http://localhost:8000/api/vendors/{vendor.get('name')}/trends", timeout=2)
+                            trends_resp = requests.get(f"{API_URL}/api/vendors/{vendor.get('name')}/trends", timeout=2)
                             if trends_resp.status_code == 200:
                                 trends = trends_resp.json()
                                 if trends.get('monthly_spending'):
@@ -421,8 +424,8 @@ elif page == "Analytics":
     st.markdown('<h1 class="main-header">Analytics</h1>', unsafe_allow_html=True)
     
     try:
-        analytics_response = requests.get("http://localhost:8000/api/analytics/summary", timeout=2)
-        category_response = requests.get("http://localhost:8000/api/analytics/categories", timeout=2)
+        analytics_response = requests.get(f"{API_URL}/api/analytics/summary", timeout=2)
+        category_response = requests.get(f"{API_URL}/api/analytics/categories", timeout=2)
         
         if analytics_response.status_code == 200:
             analytics = analytics_response.json()
@@ -518,7 +521,7 @@ elif page == "AI Assistant":
             with st.spinner("Processing your query..."):
                 try:
                     response = requests.post(
-                        "http://localhost:8000/api/assistant/query",
+                        f"{API_URL}/api/assistant/query",
                         json={"query": user_query},
                         timeout=10
                     )
@@ -570,7 +573,7 @@ elif page == "Reports":
                 try:
                     params = {"month": month} if month else {}
                     response = requests.post(
-                        "http://localhost:8000/api/reports/monthly",
+                        f"{API_URL}/api/reports/monthly",
                         params=params,
                         timeout=30
                     )
@@ -589,7 +592,7 @@ elif page == "Reports":
         if st.button("Export to CSV"):
             with st.spinner("Generating CSV export..."):
                 try:
-                    response = requests.get("http://localhost:8000/api/reports/csv", timeout=30)
+                    response = requests.get(f"{API_URL}/api/reports/csv", timeout=30)
                     
                     if response.status_code == 200:
                         result = response.json()

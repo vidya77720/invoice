@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ai-invoice-intelligence
+    env: docker
+    plan: free
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: PORT
+        value: 8501
+      - key: OPENAI_API_KEY
+        sync: false
