@@ -10,8 +10,18 @@ router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
 class InvoiceUpdateRequest(BaseModel):
     vendor_name: Optional[str] = None
+    vendor_address: Optional[str] = None
+    gstin: Optional[str] = None
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[str] = None
+    due_date: Optional[str] = None
+    currency: Optional[str] = None
+    subtotal: Optional[float] = None
+    discount: Optional[float] = None
+    tax_amount: Optional[float] = None
     total_amount: Optional[float] = None
     category: Optional[str] = None
+    status: Optional[str] = None
 
 @router.post("/upload")
 async def upload_invoice(file: UploadFile = File(...)):

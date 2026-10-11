@@ -12,6 +12,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 from app.storage.json_store import invoices_store, vendors_store, anomalies_store
 from app.core.config import settings
+from app.services.duplicate_service import duplicate_service
 
 class ReportService:
     """Service for generating PDF and Excel reports"""
@@ -25,6 +26,7 @@ class ReportService:
         invoices = invoices_store.read("invoices.json", {})
         vendors = vendors_store.read("vendors.json", {})
         anomalies = anomalies_store.read("anomalies.json", {})
+        duplicates = duplicate_service.find_all_duplicates()
         
         # Filter invoices for the month
         month_invoices = [
@@ -39,7 +41,8 @@ class ReportService:
             "total_amount": sum(inv.get("total_amount", 0) or 0 for inv in month_invoices),
             "invoices": month_invoices,
             "vendors": vendors,
-            "anomalies": anomalies
+            "anomalies": anomalies,
+            "duplicates": duplicates
         }
         
         # Generate PDF report
@@ -142,6 +145,29 @@ class ReportService:
             story.append(table)
             story.append(Spacer(1, 20))
         
+        # Category Breakdown
+        category_totals = {}
+        for inv in data['invoices']:
+            cat = inv.get('category', 'Other')
+            category_totals[cat] = category_totals.get(cat, 0) + (inv.get('total_amount', 0) or 0)
+        
+        if category_totals:
+            story.append(Paragraph("<b>Category Breakdown</b>", styles['Heading2']))
+            story.append(Spacer(1, 10))
+            cat_table_data = [['Category', 'Total Amount']]
+            for c_name, c_amt in category_totals.items():
+                cat_table_data.append([c_name, f"₹{c_amt:,.2f}"])
+            cat_table = Table(cat_table_data, colWidths=[3*inch, 2*inch])
+            cat_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.navy),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(cat_table)
+            story.append(Spacer(1, 20))
+
         # Anomalies
         if data['anomalies']:
             story.append(Paragraph("<b>Anomalies Detected</b>", styles['Heading2']))
@@ -149,6 +175,15 @@ class ReportService:
             
             anomaly_count = len(data['anomalies'])
             story.append(Paragraph(f"Total anomalies detected: {anomaly_count}", summary_style))
+            story.append(Spacer(1, 15))
+
+        # Duplicates
+        if data.get('duplicates'):
+            story.append(Paragraph("<b>Potential Duplicates</b>", styles['Heading2']))
+            story.append(Spacer(1, 10))
+            dup_count = len(data['duplicates'])
+            story.append(Paragraph(f"Potential duplicate groups detected: {dup_count}", summary_style))
+            story.append(Spacer(1, 15))
         
         # Build PDF
         doc.build(story)
@@ -260,6 +295,22 @@ class ReportService:
                 ]
                 ws_anomalies.append(row)
         
+        # Duplicates Sheet
+        if data.get('duplicates'):
+            ws_duplicates = wb.create_sheet("Duplicates")
+            headers = ['Duplicate Type', 'Invoice 1', 'Invoice 2', 'Details']
+            ws_duplicates.append(headers)
+            for cell in ws_duplicates[1]:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+            for dup in data['duplicates']:
+                ws_duplicates.append([
+                    dup.get('type', 'POSSIBLE_DUPLICATE'),
+                    dup.get('invoice_id_1', ''),
+                    dup.get('invoice_id_2', ''),
+                    dup.get('reason', '')
+                ])
+
         # Save workbook
         wb.save(str(filepath))
         

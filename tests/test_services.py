@@ -90,5 +90,62 @@ def test_config_settings():
     assert "pending" in settings.INVOICE_STATUSES
     assert "approved" in settings.INVOICE_STATUSES
 
+def test_duplicate_service():
+    """Test duplicate detection service"""
+    from app.services.duplicate_service import duplicate_service
+    invoice1 = {
+        "id": "INV-001",
+        "file_hash": "hash123",
+        "vendor_name": "Acme Corp",
+        "invoice_number": "AC-100",
+        "invoice_date": "2026-09-01",
+        "total_amount": 5000.0
+    }
+    invoice2 = {
+        "id": "INV-002",
+        "file_hash": "hash123",
+        "vendor_name": "Acme Corp",
+        "invoice_number": "AC-100",
+        "invoice_date": "2026-09-01",
+        "total_amount": 5000.0
+    }
+    # Check possible duplicate matching logic
+    is_dup = duplicate_service._is_possible_duplicate(invoice1, invoice2)
+    assert is_dup == True
+
+def test_anomaly_service():
+    """Test anomaly detection service"""
+    from app.services.anomaly_service import anomaly_service
+    # Calculation mismatch test
+    mismatch_invoice = {
+        "subtotal": 1000.0,
+        "tax_amount": 180.0,
+        "discount": 0.0,
+        "total_amount": 2500.0,  # Expected 1180.0
+        "vendor_name": "Test Vendor"
+    }
+    calc_err = anomaly_service._check_calculation(mismatch_invoice)
+    assert calc_err is not None
+    assert "Calculation mismatch" in calc_err
+
+def test_heuristic_extraction():
+    """Test heuristic regex extraction without LLM key"""
+    from app.services.ai_service import ai_service
+    sample_text = """
+    Acme Tech Solutions
+    GSTIN: 27AABCT3518Q1ZT
+    Invoice No: INV-98765
+    Invoice Date: 2026-08-15
+    Subtotal: 10,000.00
+    Tax: 1,800.00
+    Total Amount: 11,800.00
+    """
+    extracted = ai_service._heuristic_extraction(sample_text)
+    assert extracted["invoice_number"] == "INV-98765"
+    assert extracted["gstin"] == "27AABCT3518Q1ZT"
+    assert extracted["total_amount"] == 11800.0
+    assert extracted["subtotal"] == 10000.0
+    assert extracted["tax_amount"] == 1800.0
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

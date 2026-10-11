@@ -17,9 +17,11 @@ class Settings:
     ALLOWED_EXTENSIONS = set(os.getenv("ALLOWED_EXTENSIONS", "pdf,png,jpg,jpeg").split(","))
     
     # LLM Settings
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     
     # OCR Settings
     TESSERACT_PATH = os.getenv("TESSERACT_PATH")

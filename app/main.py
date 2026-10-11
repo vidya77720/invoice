@@ -58,6 +58,15 @@ async def get_categories():
 async def get_statuses():
     return {"statuses": settings.INVOICE_STATUSES}
 
+@app.get("/api/anomalies")
+async def get_anomalies():
+    """Get all detected invoice anomalies"""
+    from app.services.anomaly_service import anomaly_service
+    try:
+        return anomaly_service.analyze_all_anomalies()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",

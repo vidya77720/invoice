@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime, timedelta
 
 from app.core.config import settings
-from app.storage.json_store import invoices_store
+from app.storage.json_store import invoices_store, processing_jobs_store
 from app.services.pdf_service import pdf_service
 from app.services.ocr_service import ocr_service
 from app.services.ai_service import ai_service
@@ -54,20 +54,39 @@ class InvoiceService:
         return (file_path, filename)
     
     def extract_text(self, file_path: Path, file_ext: str) -> str:
-        """Extract text from invoice file"""
+        """Extract text from invoice file.
+
+        PDF  → PyMuPDF native text layer; OCR fallback only if Tesseract is installed.
+        Image → Tesseract OCR if available; otherwise return '' (AI heuristic will handle it).
+        Never raises — returns at minimum an empty string.
+        """
         try:
             if file_ext == 'pdf':
-                # Check if PDF has extractable text
-                if pdf_service.is_text_extractable(file_path):
-                    return pdf_service.extract_text_from_pdf(file_path)
-                else:
-                    # Use OCR for scanned PDFs
-                    return pdf_service.extract_text_with_ocr(file_path)
+                # Always works — PyMuPDF handles digital PDFs without Tesseract
+                return pdf_service.extract_text_with_ocr(file_path)
             else:
-                # Image files - use OCR
-                return ocr_service.extract_text_from_image(file_path)
+                # Image file: try OCR first, else attempt PyMuPDF image read
+                if ocr_service.is_available():
+                    text = ocr_service.extract_text_from_image(file_path)
+                    if text:
+                        return text
+                # PyMuPDF can sometimes read embedded text in image-type docs
+                try:
+                    doc = __import__('pymupdf').open(str(file_path))
+                    text = "".join(page.get_text() for page in doc)
+                    doc.close()
+                    if text.strip():
+                        return text.strip()
+                except Exception:
+                    pass
+                # Return filename hint so AI heuristic at least has context
+                return f"[Image invoice: {file_path.name}]"
         except Exception as e:
-            raise Exception(f"Text extraction failed: {str(e)}")
+            # Log but never crash — let AI service handle with minimal text
+            import logging
+            logging.getLogger(__name__).error("Text extraction failed: %s", e)
+            return f"[Extraction error: {file_path.name}]"
+
     
     def create_invoice_record(self, file_path: Path, file_name: str, file_size: int, extracted_text: str) -> dict:
         """Create initial invoice record"""
@@ -104,6 +123,14 @@ class InvoiceService:
         
         # Save to storage
         invoices_store.update("invoices.json", invoice_id, invoice_data)
+        
+        # Track processing job
+        processing_jobs_store.update("processing_jobs.json", invoice_id, {
+            "job_id": invoice_id,
+            "file_name": file_name,
+            "status": "processing",
+            "created_at": datetime.now().isoformat()
+        })
         
         return invoice_data
     
@@ -158,8 +185,11 @@ class InvoiceService:
         if not invoice:
             raise Exception("Invoice not found")
         
-        # Extract data using AI
-        extracted_data = ai_service.extract_invoice_data(invoice["extracted_text"])
+        # Extract data using AI — pass file_path so Gemini Vision can handle scanned PDFs
+        extracted_data = ai_service.extract_invoice_data(
+            invoice["extracted_text"],
+            file_path=invoice.get("file_path")
+        )
         
         # Update invoice with extracted data
         updates = {
@@ -207,12 +237,29 @@ class InvoiceService:
         else:
             updates["status"] = "review_required"
         
+        # Archive file to processed directory
+        try:
+            original_path = Path(invoice["file_path"])
+            if original_path.exists():
+                processed_path = settings.PROCESSED_DIR / invoice["file_name"]
+                shutil.copy2(original_path, processed_path)
+                updates["processed_file_path"] = str(processed_path)
+        except Exception:
+            pass
+
         # Update invoice
         updated_invoice = self.update_invoice(invoice_id, updates)
         
         # Update vendor data
         if updated_invoice.get("vendor_name"):
             vendor_service.update_vendor_data(updated_invoice)
+        
+        # Mark job complete
+        processing_jobs_store.update("processing_jobs.json", invoice_id, {
+            "job_id": invoice_id,
+            "status": "completed",
+            "completed_at": datetime.now().isoformat()
+        })
         
         return updated_invoice
 
