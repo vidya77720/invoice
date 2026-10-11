@@ -24,10 +24,10 @@ RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 # Environment settings
 ENV PORT=8501
 ENV API_PORT=8000
-ENV API_HOST=0.0.0.0
+ENV API_HOST=127.0.0.1
 ENV API_URL=http://127.0.0.1:8000
 
 # Streamlit port
-EXPOSE 8501 8000
+EXPOSE 8501
 
 CMD ["./start.sh"]
