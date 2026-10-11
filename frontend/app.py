@@ -627,7 +627,10 @@ elif selected_page == "Upload Invoice":
                         res = requests.post(f"{API_URL}/api/invoices/upload", files=files)
                         if res.status_code == 200:
                             data = res.json()
-                            st.success("🎉 Invoice processed and recorded successfully!")
+                            if data.get("warning"):
+                                st.warning(f"⚠️ {data['warning']}")
+                            else:
+                                st.success("🎉 Invoice processed and recorded successfully!")
                             st.json(data.get("invoice", {}))
                         else:
                             st.error(f"Upload failed: {res.text}")

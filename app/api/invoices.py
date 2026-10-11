@@ -56,6 +56,8 @@ async def upload_invoice(file: UploadFile = File(...)):
                 "invoice": processed_invoice
             }
         except Exception as ai_error:
+            import logging
+            logging.getLogger(__name__).error("AI processing failed on invoice %s: %s", invoice_data.get("id"), ai_error, exc_info=True)
             # If AI processing fails, still return the basic invoice
             return {
                 "message": "Invoice uploaded successfully (AI processing failed)",
