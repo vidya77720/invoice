@@ -116,15 +116,22 @@ class AnomalyService:
         """Check if calculations are consistent"""
         subtotal = invoice_data.get("subtotal")
         tax = invoice_data.get("tax_amount")
-        discount = invoice_data.get("discount", 0)
+        discount = invoice_data.get("discount") or 0
         total = invoice_data.get("total_amount")
         
         if subtotal is not None and tax is not None and total is not None:
-            expected_total = subtotal + tax - discount
-            
-            # Allow small rounding differences
-            if abs(total - expected_total) > 1:
-                return f"Calculation mismatch: Expected ₹{expected_total:,.2f}, Got ₹{total:,.2f}"
+            try:
+                subtotal = float(subtotal)
+                tax = float(tax)
+                discount = float(discount)
+                total = float(total)
+                expected_total = subtotal + tax - discount
+                
+                # Allow small rounding differences
+                if abs(total - expected_total) > 1:
+                    return f"Calculation mismatch: Expected ₹{expected_total:,.2f}, Got ₹{total:,.2f}"
+            except (ValueError, TypeError):
+                pass
         
         return None
     

@@ -201,7 +201,7 @@ class InvoiceService:
             "due_date": extracted_data.get("due_date"),
             "currency": extracted_data.get("currency", "INR"),
             "subtotal": extracted_data.get("subtotal"),
-            "discount": extracted_data.get("discount", 0),
+            "discount": extracted_data.get("discount") or 0,
             "tax_amount": extracted_data.get("tax_amount"),
             "total_amount": extracted_data.get("total_amount"),
             "line_items": extracted_data.get("line_items", [])
